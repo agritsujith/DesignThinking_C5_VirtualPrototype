@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>C5 Snapshot Rig – Virtual Prototype</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#e9eef3;--panel:rgba(255,255,255,.92);--bd:rgba(30,60,90,.2);--tx:#0f1c2b;--mut:#4d6177;--btn:#e3ebf3;--btnh:#cfdeed;--ac:#0b8a63;--wr:#c62828;--pri:#0f3a5f;--prit:#fff}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b1118;--panel:rgba(12,20,30,.9);--bd:rgba(130,170,210,.25);--tx:#e8f0f8;--mut:#93a7bc;--btn:#18283c;--btnh:#244262;--ac:#2dd4a0;--wr:#f87171;--pri:#f2b94b;--prit:#1a1204}}
+:root[data-theme="dark"]{--bg:#0b1118;--panel:rgba(12,20,30,.9);--bd:rgba(130,170,210,.25);--tx:#e8f0f8;--mut:#93a7bc;--btn:#18283c;--btnh:#244262;--ac:#2dd4a0;--wr:#f87171;--pri:#f2b94b;--prit:#1a1204}
+html{scroll-padding-top:env(safe-area-inset-top,0px);height:100%}
+body{margin:0;height:100%;background:var(--bg);color:var(--tx);font:13px/1.4 "Trebuchet MS","Segoe UI",system-ui,sans-serif;overflow:hidden;position:relative}
+#c{display:block;width:100%;height:100%;touch-action:none}
+#panel{position:absolute;left:12px;top:12px;width:304px;max-height:calc(100% - 76px);overflow:auto;background:var(--panel);border:1px solid var(--bd);border-radius:10px;padding:12px;backdrop-filter:blur(8px)}
+h1{font:700 17px/1.2 Georgia,"Times New Roman",serif;margin:0}
+.sub{color:var(--mut);font-size:11.5px;margin:2px 0 10px}
+button{font:inherit;color:var(--tx);background:var(--btn);border:1px solid var(--bd);border-radius:7px;padding:8px 10px;cursor:pointer;text-align:left}
+button:hover:not(:disabled){background:var(--btnh)}button:focus-visible{outline:2px solid var(--ac);outline-offset:2px}button:disabled{opacity:.55;cursor:wait}
+button.pri{background:var(--pri);color:var(--prit);font-weight:700;border-color:transparent}
+button.on{border-color:var(--ac);box-shadow:inset 3px 0 0 var(--ac)}
+.btns{display:grid;gap:6px}.btns small{color:var(--mut)}
+.chk{display:flex;gap:6px;align-items:center;color:var(--mut);font-size:12px;padding:0 2px}
+.row{display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px solid var(--bd)}.row span{color:var(--mut)}.row b{text-align:right}
+.bar{height:6px;background:var(--btn);border-radius:3px;margin:3px 0 4px;overflow:hidden}.bar i{display:block;height:100%;width:0;background:var(--ac)}
+.ok{color:var(--ac)}.bad{color:var(--wr)}
+#log{margin-top:8px;color:var(--mut);font-size:11.5px;min-height:70px}#log div{padding:1px 0}
+#presets{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);display:flex;gap:6px;max-width:calc(100% - 24px);overflow-x:auto;background:var(--panel);border:1px solid var(--bd);border-radius:10px;padding:6px}
+#presets button{white-space:nowrap;text-align:center}
+#flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
+#labels .lb{position:absolute;transform:translate(-50%,-100%);background:var(--panel);border:1px solid var(--ac);border-radius:5px;padding:2px 6px;font-size:11px;pointer-events:none;white-space:nowrap}
+#modal{position:absolute;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:12px}#modal[hidden]{display:none}
+.card{background:var(--panel);border:1px solid var(--bd);border-radius:10px;padding:10px;max-width:680px;width:100%;max-height:100%;overflow:auto}
+.mh{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+#photo{width:100%;height:auto;border-radius:6px;display:block}
+.meta{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:8px;color:var(--mut);font-size:12px}
+#badge{margin-top:6px;font-weight:700;color:var(--ac)}
+@media (max-width:760px){#panel{top:auto;bottom:62px;left:8px;right:8px;width:auto;max-height:46%}#presets{left:8px;right:8px;bottom:8px;transform:none;max-width:none}}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+</style></head><body>
+<canvas id="c"></canvas><div id="labels"></div><div id="flash"></div>
+<div id="panel">
+ <h1>Absentee Landowner 60-Second Snapshot</h1>
+ <div class="sub">Concept 5 – Snapshot Rig, virtual prototype</div>
+ <div class="btns">
+  <button id="bSnap" class="pri">Trigger ESP32-CAM Snapshot</button>
+  <button id="bValve">Actuate Valve (Open / Close) <small id="vNext"></small></button>
+  <label class="chk"><input type="checkbox" id="jam"> Simulate valve obstruction (stall test)</label>
+  <button id="bSleep">Deep Sleep / Wake Cycle</button>
+  <button id="bExp">Exploded / Inspect View</button>
+ </div>
+ <div style="margin-top:10px">
+  <div class="row"><span>Valve</span><b id="vState"></b></div>
+  <div class="row"><span>Motor current</span><b id="cur"></b></div>
+  <div class="bar"><i id="curBar"></i></div>
+  <div class="row"><span>Stall protection</span><b id="prot"></b></div>
+  <div class="row"><span>Power mode</span><b id="mode"></b></div>
+  <div class="row"><span>Battery SoC</span><b id="soc"></b></div>
+  <div class="bar"><i id="socBar"></i></div>
+  <div class="row"><span>Solar input</span><b id="sol"></b></div>
+  <div class="row"><span>System draw</span><b id="drw"></b></div>
+  <div class="row"><span>GSM uplink</span><b id="gsm"></b></div>
+ </div>
+ <div id="log"></div>
+</div>
+<div id="presets">
+ <button data-v="0">Overall Rig</button><button data-v="1">ESP32-CAM Close-Up</button>
+ <button data-v="2">Gear Motor &amp; Valve Clamp</button><button data-v="3">Corporate Landowner Telemetry View</button>
+</div>
+<div id="modal" hidden><div class="card">
+ <div class="mh"><b id="phT">ESP32-CAM capture</b><button id="x">Close</button></div>
+ <canvas id="photo" width="640" height="400"></canvas>
+ <div class="meta"><span id="phTime"></span><span id="phGps"></span><span id="phInfo"></span></div>
+ <div id="badge"></div>
+</div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x9fc3e0);scene.fog=new THREE.Fog(0x9fc3e0,18,45);
+const cam=new THREE.PerspectiveCamera(45,1,.05,100);cam.position.set(4.5,3.2,6.5);
+const ren=new THREE.WebGLRenderer({canvas:$('c'),antialias:true});
+ren.setPixelRatio(Math.min(devicePixelRatio,2));ren.shadowMap.enabled=true;ren.shadowMap.type=THREE.PCFSoftShadowMap;ren.outputEncoding=THREE.sRGBEncoding;
+const ctl=new THREE.OrbitControls(cam,ren.domElement);
+ctl.enableDamping=true;ctl.dampingFactor=.06;ctl.target.set(.2,1.8,.5);ctl.maxPolarAngle=Math.PI/2-.02;ctl.minDistance=.5;ctl.maxDistance=14;
+
+scene.add(new THREE.HemisphereLight(0xdcecff,0x4a5a3a,.75));
+const sun=new THREE.DirectionalLight(0xfff2d6,1.1);sun.position.set(6,9,5);sun.castShadow=true;
+sun.shadow.mapSize.set(2048,2048);sun.shadow.bias=-.0005;
+Object.assign(sun.shadow.camera,{left:-6,right:6,top:6,bottom:-6,near:1,far:30});scene.add(sun);
+
+/* helpers */
+const M=(c,m=.3,r=.6,o={})=>new THREE.MeshStandardMaterial(Object.assign({color:c,metalness:m,roughness:r},o));
+function add(g,mat,x,y,z,p){const m=new THREE.Mesh(g,mat);m.position.set(x,y,z);m.castShadow=m.receiveShadow=true;(p||scene).add(m);return m}
+const B=(w,h,d,mat,x,y,z,p)=>add(new THREE.BoxGeometry(w,h,d),mat,x,y,z,p);
+const C=(a,b,h,mat,x,y,z,p,s=28)=>add(new THREE.CylinderGeometry(a,b,h,s),mat,x,y,z,p);
+const CZ=(a,b,h,mat,x,y,z,p)=>{const g=new THREE.CylinderGeometry(a,b,h,28);g.rotateX(Math.PI/2);return add(g,mat,x,y,z,p)};
+const CX=(a,b,h,mat,x,y,z,p)=>{const g=new THREE.CylinderGeometry(a,b,h,28);g.rotateZ(Math.PI/2);return add(g,mat,x,y,z,p)};
+const G=(x,y,z,p)=>{const g=new THREE.Group();g.position.set(x,y,z);(p||scene).add(g);return g};
+const tube=(pts,r=.012)=>add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p=>new THREE.Vector3(...p))),48,r,6,false),dark,0,0,0);
+const grey=M(0x7d858c,.15,.75),dark=M(0x1b1f24,.4,.5),alu=M(0xc3c9d0,.9,.35),galv=M(0x9aa3aa,.8,.4),brass=M(0xc8a24a,.9,.3),
+ pvc=M(0xb9bec4,.05,.55),red=M(0xd62828,.1,.45),pcbG=M(0x0f6b3a,.2,.5),
+ glass=M(0xbfe3ff,.1,.05,{transparent:true,opacity:.2,depthWrite:false});
+const ledMat=M(0xffffff,0,.4,{emissive:0xfff3c4,emissiveIntensity:.12});
+const stallMat=M(0x111111,0,.4,{emissive:0x22ff88,emissiveIntensity:1.5});
+const statMat=M(0x111111,0,.4,{emissive:0x3b82f6,emissiveIntensity:1.5});
+
+/* environment */
+const gr=add(new THREE.PlaneGeometry(40,40),M(0x6b7a4a,0,1),0,0,0);gr.rotation.x=-Math.PI/2;gr.castShadow=false;
+const grid=new THREE.GridHelper(40,40,0x3d5a3a,0x4d6a45);grid.position.y=.006;grid.material.transparent=true;grid.material.opacity=.35;scene.add(grid);
+const soil=M(0x5a3a24,0,1),leaf=M(0x3f8f3a,0,.8);
+B(2.2,.12,1.0,soil,-.8,.06,1.9);
+for(let r=0;r<3;r++)for(let i=0;i<7;i++){const x=-1.7+i*.3,z=1.6+r*.3;
+ C(0,.07,.18,leaf,x,.21,z,null,8);add(new THREE.SphereGeometry(.05,8,6),leaf,x+.03,.17,z,null)}
+
+/* pole */
+C(.06,.06,3.1,galv,0,1.55,0);C(.2,.25,.15,M(0x8b8b86,0,1),0,.07,0);C(.065,.065,.05,dark,0,3.12,0);
+
+/* enclosure */
+const enc=G(0,2.2,.25);
+B(.9,.7,.3,grey,0,0,0,enc);B(.4,.62,.03,alu,0,0,-.165,enc);
+[1.98,2.42].forEach(y=>{const t=add(new THREE.TorusGeometry(.075,.012,8,24),alu,0,y,0);t.rotation.x=Math.PI/2});
+[-.25,0,.25].forEach(x=>{C(.04,.04,.08,dark,x,-.39,.02,enc);C(.052,.052,.03,dark,x,-.36,.02,enc,6)});
+const lid=G(0,0,.17,enc);
+B(1,.1,.04,grey,0,.35,0,lid);B(1,.1,.04,grey,0,-.35,0,lid);B(.1,.6,.04,grey,-.45,0,0,lid);B(.1,.6,.04,grey,.45,0,0,lid);
+B(.82,.02,.03,dark,0,.31,-.02,lid);B(.82,.02,.03,dark,0,-.31,-.02,lid);B(.02,.62,.03,dark,-.41,0,-.02,lid);B(.02,.62,.03,dark,.41,0,-.02,lid);
+B(.8,.6,.012,glass,0,0,.02,lid);
+[-.45,0,.45].forEach(x=>[-.35,.35].forEach(y=>{const s=CZ(.016,.016,.02,alu,x,y,.03,lid)}));
+/* camera pod */
+const pod=G(-.28,.08,.04,lid);pod.rotation.x=.4;
+CZ(.075,.075,.02,dark,0,0,.01,pod);CZ(.045,.05,.07,dark,0,0,.05,pod);
+CZ(.035,.035,.01,M(0x223355,.9,.1,{emissive:0x0a1020}),0,0,.09,pod);
+CZ(.058,.058,.008,glass,0,0,.105,pod);
+add(new THREE.TorusGeometry(.062,.008,8,24),ledMat,0,0,.078,pod);
+const flashL=new THREE.PointLight(0xffffff,0,5);flashL.position.set(0,0,.2);pod.add(flashL);
+/* internals */
+B(.78,.58,.012,M(0xd6d9dc,.3,.6),0,0,-.13,enc);
+const pcb=G(0,0,-.11,enc);B(.74,.52,.012,pcbG,0,0,0,pcb);
+B(.07,.07,.012,dark,-.02,.12,.01,pcb);B(.05,.03,.012,dark,.05,.05,.01,pcb);B(.12,.02,.012,brass,-.15,-.05,.01,pcb);
+const term=G(0,-.2,-.07,enc);for(let i=0;i<5;i++){B(.05,.05,.04,M(0x1f8a3d,.1,.6),-.14+i*.055,0,0,term);CZ(.012,.012,.01,alu,-.14+i*.055,0,.025,term)}
+const relay=G(.18,.1,-.085,enc);B(.26,.2,.01,M(0x1a4fa3,.2,.5),0,0,0,relay);B(.09,.07,.07,M(0x2d62c8,.1,.5),-.04,-.02,.04,relay);
+B(.03,.015,.015,dark,.07,-.06,.015,relay);B(.04,.04,.012,dark,.06,.03,.01,relay);
+add(new THREE.SphereGeometry(.014,12,10),stallMat,.1,.08,.012,relay);add(new THREE.SphereGeometry(.011,12,10),statMat,.06,.08,.012,relay);
+const bat=G(.24,-.13,-.04,enc);B(.26,.1,.09,M(0x0f766e,.2,.6),0,0,0,bat);
+[-.06,.06].forEach(x=>{const g=new THREE.CylinderGeometry(.03,.03,.2,16);g.rotateZ(Math.PI/2);add(g,M(0xd9d9d9,.8,.3),x*1.2,0,.07,bat)});
+const esp=G(-.28,.08,-.05,enc);B(.2,.14,.012,M(0x111418,.3,.5),0,0,0,esp);B(.09,.075,.006,alu,.04,-.01,.01,esp);
+B(.05,.05,.025,M(0x333333,.3,.5),-.05,.0,.019,esp);CZ(.014,.014,.02,M(0x1a2a4a,.9,.1),-.05,0,.04,esp);
+B(.18,.008,.01,brass,0,.062,-.01,esp);B(.18,.008,.01,brass,0,-.062,-.01,esp);B(.04,.03,.01,alu,.08,.04,.01,esp);
+const parts=[[lid,0,0,1],[esp,0,.08,.6],[relay,.1,.1,.35],[bat,0,-.1,.25],[term,0,-.15,.15]].map(([o,x,y,z])=>({o,b:o.position.clone(),d:new THREE.Vector3(x,y,z)}));
+
+/* pipe, valve, gear motor */
+const pipeG=new THREE.CylinderGeometry(.07,.07,4.2,28);pipeG.rotateZ(Math.PI/2);add(pipeG,pvc,.3,.8,.5);
+[-1.2,2.0].forEach(x=>{B(.08,.73,.08,galv,x,.365,.5);const t=add(new THREE.TorusGeometry(.085,.012,8,20),alu,x,.8,.5);t.rotation.y=Math.PI/2});
+CX(.1,.1,.4,brass,.9,.8,.5);add(new THREE.SphereGeometry(.14,20,16),brass,.9,.8,.5);
+[-.2,.2].forEach(d=>CX(.115,.115,.03,brass,.9+d,.8,.5));C(.07,.07,.12,brass,.9,.96,.5);
+const post=C(.03,.03,.73,alu,1.45,1.23,.5);{const t=add(new THREE.TorusGeometry(.085,.014,8,20),alu,1.45,.8,.5);t.rotation.y=Math.PI/2}
+B(.46,.04,.1,alu,1.22,1.36,.5);
+const gb=G(.9,0,.5);B(.22,.12,.22,M(0x3a4a5e,.6,.4),0,1.36,0,gb);C(.07,.07,.28,galv,0,1.56,0,gb);C(.072,.072,.03,dark,0,1.725,0,gb);
+const lever=G(.9,0,.5);
+C(.025,.025,.32,alu,0,1.16,0,lever);C(.04,.04,.06,dark,0,1.25,0,lever);C(.075,.075,.025,brass,0,1.29,0,lever,14);C(.06,.06,.08,alu,0,1.08,0,lever);
+B(.55,.03,.07,red,-.28,1.08,0,lever);B(.1,.05,.09,red,-.55,1.08,0,lever);
+B(.3,.025,.05,alu,-.12,1.115,0,lever);[-.15,-.3].forEach(x=>B(.03,.07,.1,alu,x,1.08,0,lever));
+
+/* cables & soil probe */
+tube([[0,1.78,.27],[0,1.55,.55],[.5,1.45,.75],[.9,1.8,.62],[.9,1.74,.5]]);
+tube([[-.25,1.78,.27],[-.25,1.4,.6],[-.5,.9,1.0],[-.9,.3,1.4],[-1,.12,1.5]]);
+B(.08,.1,.05,dark,-1,.14,1.5);[-.03,.03].forEach(x=>B(.025,.22,.01,M(0xd9c27a,.5,.5),-1+x,.02,1.5));
+
+/* solar panel */
+const cv=document.createElement('canvas');cv.width=256;cv.height=172;{const g=cv.getContext('2d');g.fillStyle='#12264a';g.fillRect(0,0,256,172);
+ g.strokeStyle='#5f7fb5';g.lineWidth=1;for(let i=0;i<=10;i++){g.beginPath();g.moveTo(i*25.6,0);g.lineTo(i*25.6,172);g.stroke()}
+ for(let j=0;j<=6;j++){g.beginPath();g.moveTo(0,j*28.6);g.lineTo(256,j*28.6);g.stroke()}
+ g.strokeStyle='#c9d4e6';for(let i=0;i<10;i++){g.beginPath();g.moveTo(i*25.6+12.8,0);g.lineTo(i*25.6+12.8,172);g.stroke()}}
+const cellM=M(0xffffff,.6,.25,{map:new THREE.CanvasTexture(cv)});
+const panel=G(-.45,3.3,-.05);panel.rotation.x=.61;
+B(1.14,.025,.79,alu,0,-.012,0,panel);add(new THREE.BoxGeometry(1.1,.02,.75),[alu,alu,cellM,alu,alu,alu],0,.005,0,panel);
+B(.95,.05,.05,alu,-.475,3.02,0);[-.2,-.7].forEach(x=>B(.03,.28,.03,alu,x,3.17,0));
+
+/* antenna */
+C(.045,.05,.1,M(0x222831,.4,.5),.35,2.6,.25);
+const whip=G(.35,2.65,.25);C(.02,.02,.12,dark,0,.1,0,whip);C(.008,.012,.9,M(0x050505,.3,.5),0,.5,0,whip);
+
+/* camera tweens */
+const views=[[[4.5,3.2,6.5],[.2,1.8,.5]],[[-.5,2.0,1.6],[-.28,2.25,.5]],[[2.2,1.8,2.3],[.9,1.1,.5]],[[1.2,4.4,5],[0,2.7,.3]]];
+let tw=null;
+function goView(i){const v=views[i];tw={t:0,p0:cam.position.clone(),p1:new THREE.Vector3(...v[0]),t0:ctl.target.clone(),t1:new THREE.Vector3(...v[1])};
+ document.querySelectorAll('#presets button').forEach((b,k)=>b.classList.toggle('on',k===i))}
+document.querySelectorAll('#presets button').forEach(b=>b.onclick=()=>goView(+b.dataset.v));
+ctl.addEventListener('start',()=>{tw=null});
+
+/* state */
+const S={open:true,ang:0,sleep:false,expl:0,explT:0,flash:0,cur:0,stall:false,soc:78,t:0,shots:0,uplink:''};
+let mo=null,logs=[];
+function log(s){logs.unshift(new Date().toLocaleTimeString('en-GB',{hour12:false})+'  '+s);logs=logs.slice(0,5);$('log').innerHTML=logs.map(l=>'<div>'+l+'</div>').join('')}
+function wake(){if(S.sleep){S.sleep=false;log('Wake: RTC timer interrupt, MCU active')}}
+
+/* snapshot */
+$('bSnap').onclick=()=>{wake();S.flash=1;S.shots++;log('Shutter + flash LED fired');setTimeout(showPhoto,500)};
+function pad(n){return String(n).padStart(2,'0')}
+function showPhoto(){
+ const d=new Date(),c=$('photo'),g=c.getContext('2d'),w=c.width,h=c.height;
+ let s=g.createLinearGradient(0,0,0,h*.4);s.addColorStop(0,'#86b4da');s.addColorStop(1,'#dbe9f3');g.fillStyle=s;g.fillRect(0,0,w,h);
+ g.fillStyle='#6f7f4a';g.fillRect(0,h*.4,w,h*.6);
+ g.fillStyle='#5a3a24';g.beginPath();g.moveTo(w*.12,h*.55);g.lineTo(w*.88,h*.55);g.lineTo(w,h);g.lineTo(0,h);g.fill();
+ for(let r=0;r<5;r++){const y=h*(.58+.4*Math.pow(r/5,1.5)),sp=26+r*20,rad=5+r*4;
+  for(let k=-8;k<=8;k++){g.fillStyle=r%2?'#3f8f3a':'#4aa043';g.beginPath();g.arc(w/2+k*sp,y,rad,0,7);g.fill()}}
+ g.fillStyle='#b9bec4';g.fillRect(0,h*.46,w,12);
+ const vx=w*.7,vy=h*.46+6;g.fillStyle='#c8a24a';g.beginPath();g.arc(vx,vy,20,0,7);g.fill();
+ g.fillStyle='#3a4a5e';g.fillRect(vx-16,vy-52,32,30);
+ g.strokeStyle='#d62828';g.lineWidth=8;g.lineCap='round';g.beginPath();g.moveTo(vx,vy-26);
+ if(S.open)g.lineTo(vx-90,vy-26);else g.lineTo(vx,vy+60);g.stroke();
+ for(let i=0;i<900;i++){g.fillStyle='rgba(0,0,0,'+Math.random()*.08+')';g.fillRect(Math.random()*w,Math.random()*h,2,2)}
+ const vg=g.createRadialGradient(w/2,h/2,h*.4,w/2,h/2,h*.9);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.45)');g.fillStyle=vg;g.fillRect(0,0,w,h);
+ const ts=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
+ const lat=(12.9249+(Math.random()-.5)*2e-4).toFixed(5),lon=(80.1+(Math.random()-.5)*2e-4).toFixed(5);
+ g.fillStyle='rgba(0,0,0,.6)';g.fillRect(0,0,w,26);g.fillStyle='#fff';g.font='13px monospace';g.fillText(ts+'   '+lat+'N '+lon+'E   VALVE '+(S.open?'OPEN':'CLOSED'),8,17);
+ const cl=93+Math.floor(Math.random()*6),kb=34+Math.floor(Math.random()*9);
+ $('phT').textContent='ESP32-CAM capture #'+S.shots;$('phTime').textContent='Timestamp: '+ts;$('phGps').textContent='GPS: '+lat+'N, '+lon+'E (simulated)';
+ $('phInfo').textContent='1600x1200 JPEG, '+kb+' KB, sent via GSM';
+ $('badge').textContent='Optical clarity verified: '+cl+'% (protective window clean, no fog or dust)';
+ $('modal').hidden=false;S.uplink='Sent '+kb+' KB';log('Photo uplinked ('+kb+' KB), clarity '+cl+'%');
+}
+$('x').onclick=()=>$('modal').hidden=true;$('modal').onclick=e=>{if(e.target.id==='modal')$('modal').hidden=true};
+
+/* valve actuation */
+$('bValve').onclick=()=>{if(mo)return;wake();mo={from:S.ang,to:S.open?Math.PI/2:0,t:0,dur:2.6,ph:'run',jam:$('jam').checked};log('Motor start: '+(S.open?'closing':'opening')+' valve')};
+function motion(dt){
+ if(!mo){S.cur=0;return}
+ const m=mo;m.t+=dt;let cur=0;
+ if(m.ph==='run'){const p=Math.min(m.t/m.dur,1),e=p*p*(3-2*p);S.ang=m.from+(m.to-m.from)*e;
+  cur=.5+.12*Math.sin(m.t*17)+(p<.12?1.3*(1-p/.12):0)+(p>.9?(p-.9)*5:0);
+  if(m.jam&&p>=.5){m.ph='ramp';m.t=0;m.hold=S.ang}
+  else if(p>=1){mo=null;S.open=!S.open;log('Valve '+(S.open?'OPEN':'CLOSED')+', peak current 1.8 A, within limit');return}}
+ else if(m.ph==='ramp'){S.ang=m.hold;cur=.7+m.t/.35*2.8;if(cur>2.5){m.ph='stall';m.t=0;S.stall=true;cur=0;log('Stall detected (>2.5 A): motor cut by protection')}}
+ else if(m.ph==='stall'){cur=0;if(m.t>1.6){m.ph='back';m.t=0;S.stall=false;log('Retracting lever to start position')}}
+ else{const p=Math.min(m.t/1.3,1),e=p*p*(3-2*p);S.ang=m.hold+(m.from-m.hold)*e;cur=.35;if(p>=1){mo=null;log('Valve state unchanged. Check for obstruction.');return}}
+ S.cur+=(cur-S.cur)*Math.min(1,dt*14);
+}
+
+/* sleep & explode */
+$('bSleep').onclick=()=>{S.sleep=!S.sleep;log(S.sleep?'Deep sleep: radios and camera off, LEDs dimmed':'Wake: MCU active')};
+$('bExp').onclick=()=>{S.explT=S.explT?0:1;log(S.explT?'Inspect view: cover and modules separated':'Inspect view closed')};
+
+/* labels */
+const lbl=[['IP67 cover + gasket',lid,.55],['ESP32-CAM',esp,.14],['Relay + current-sense board',relay,.16],['Li-ion pack',bat,-.1],['Terminal blocks',term,-.12]].map(([t,o,dy])=>{
+ const el=document.createElement('div');el.className='lb';el.textContent=t;$('labels').appendChild(el);return{el,o,dy}});
+const vv=new THREE.Vector3();
+
+/* HUD */
+function hud(){
+ const mv=!!mo,irr=.85+.15*Math.sin(S.t*.25),sol=5.4*irr,drw=S.sleep?.0001:.35+S.cur*12;
+ $('vNext').textContent='next: '+(S.open?'close':'open');$('vState').textContent=S.open?'OPEN, flow on':'CLOSED, flow off';
+ $('cur').textContent=S.cur.toFixed(2)+' A';$('curBar').style.width=Math.min(100,S.cur/3.5*100)+'%';$('curBar').style.background=S.cur>2.5?'var(--wr)':'var(--ac)';
+ const p=$('prot');if(S.stall){p.textContent='STALL PROTECTION ACTIVE';p.className='bad'}else if(mv){p.textContent='Normal torque';p.className='ok'}else{p.textContent=S.sleep?'Armed, asleep':'Armed, idle';p.className=''}
+ $('mode').textContent=S.sleep?'Deep sleep (12 µA)':'Active';
+ $('soc').textContent=S.soc.toFixed(1)+'%  ·  '+(3.2+S.soc*.01).toFixed(2)+' V';$('socBar').style.width=S.soc+'%';
+ $('sol').textContent=sol.toFixed(2)+' W';$('drw').textContent=S.sleep?'0.04 mW':drw.toFixed(2)+' W';
+ $('gsm').textContent=S.sleep?'Offline (sleep)':(-72+Math.round(3*Math.sin(S.t*.7)))+' dBm'+(S.uplink?'  ·  '+S.uplink:'');
+ $('bSleep').classList.toggle('on',S.sleep);$('bExp').classList.toggle('on',!!S.explT);$('bValve').disabled=mv;$('bSnap').disabled=S.flash>0;
+ return [sol,drw];
+}
+
+/* loop */
+function size(){const w=innerWidth,h=innerHeight;ren.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix()}
+addEventListener('resize',size);size();log('Rig online. Valve open, battery nominal.');
+const clock=new THREE.Clock();let acc=0,pw=[0,0];
+const ease=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+(function loop(){
+ requestAnimationFrame(loop);const dt=Math.min(clock.getDelta(),.05);S.t+=dt;
+ if(tw){tw.t+=dt/1.2;const e=ease(Math.min(tw.t,1));cam.position.lerpVectors(tw.p0,tw.p1,e);ctl.target.lerpVectors(tw.t0,tw.t1,e);if(tw.t>=1)tw=null}
+ motion(dt);lever.rotation.y=S.ang;
+ S.expl+=(S.explT-S.expl)*Math.min(1,dt*3.2);parts.forEach(p=>p.o.position.copy(p.b).addScaledVector(p.d,S.expl));
+ S.flash=Math.max(0,S.flash-dt*3);flashL.intensity=S.flash*10;
+ const k=S.sleep?.06:1;
+ ledMat.emissiveIntensity=(.12+S.flash*4)*(S.sleep?.3:1)+(S.flash>0?0:0);
+ statMat.emissiveIntensity=S.sleep?(Math.sin(S.t*2)>.97?.4:.03):(.6+.9*(.5+.5*Math.sin(S.t*5)));
+ const c=S.stall?0xff2222:0x22ff88;stallMat.emissive.setHex(c);stallMat.emissiveIntensity=S.stall?(Math.sin(S.t*18)>0?2.5:.4):1.5*k;
+ $('flash').style.opacity=Math.max(0,S.flash-.55)*1.4;
+ whip.rotation.z=Math.sin(S.t*1.3)*.012;
+ acc+=dt;if(acc>.1){pw=hud();S.soc=Math.max(5,Math.min(100,S.soc+(pw[0]-pw[1])*acc*.02));acc=0}
+ ctl.update();ren.render(scene,cam);
+ const show=S.expl>.7,W=innerWidth,H=innerHeight;
+ lbl.forEach(l=>{l.o.updateWorldMatrix(true,false);vv.setFromMatrixPosition(l.o.matrixWorld);vv.y+=l.dy;vv.project(cam);
+  const vis=show&&vv.z<1;l.el.style.display=vis?'block':'none';if(vis){l.el.style.left=(vv.x*.5+.5)*W+'px';l.el.style.top=(-vv.y*.5+.5)*H+'px'}});
+})();
+goView(0);
+</script></body></html>
